@@ -147,10 +147,10 @@ checkpoint:
     auto clsname = i.lv_name + "_cls";
     auto fvtype =
         types::Alias(cc.makeCaptureName(), types::Tuple(fvtype_inside));
-    auto ftype = rv::get<types::Function>(i.type);
-    ftype.arg_types.emplace_back(types::Ref(fvtype));
-    auto clstype = types::Alias(cc.makeClosureTypeName(),
-                                types::Closure(types::Ref(ftype), fvtype));
+    // auto ftype = rv::get<types::Function>(i.type);
+    // ftype.arg_types.emplace_back(types::Ref(fvtype));
+    // auto clstype = types::Alias(cc.makeClosureTypeName(),
+    //                             types::Closure(types::Ref(ftype), fvtype));
 
     MakeClosureInst makecls(clsname, i.lv_name, fvlist, fvtype);
 

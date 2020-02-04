@@ -40,8 +40,8 @@ std::string AssignInst::toString() { return lv_name + " =(overwrite) " + val; }
 // std::string TimeInst::toString() { return lv_name + " = " + val + +"@" + time; }
 
 std::string OpInst::toString() { return lv_name + " = " + lhs + op + rhs; }
-FunInst::FunInst(const std::string& name, std::deque<std::string> newargs,
-                 types::Value type, bool isrecursive)
+FunInst::FunInst(const std::string& name, std::deque<std::string> newargs,bool isrecursive,
+                 types::Value type)
     : MIRinstruction(name, std::move(type)),
       args(std::move(newargs)),
       isrecursive(isrecursive),

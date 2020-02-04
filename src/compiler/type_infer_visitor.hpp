@@ -12,8 +12,7 @@
 
 namespace mimium {
 struct TypevarReplaceVisitor {
-  std::unordered_map<int, types::Value> tvmap;
-  void replace();
+  std::map<int, types::Value> tvmap;
   types::Value getTypeVarFromMap(types::TypeVar& i) {
     types::Value res;
     if (auto tvi = std::get_if<Rec_Wrap<types::TypeVar>>(&tvmap[i.index])) {
@@ -89,7 +88,102 @@ struct TypevarReplaceVisitor {
   types::Value operator()(types::Alias& i) {
     return types::Alias(i.name, std::visit(*this, i.target));
   };
+  void dump();
 };
+
+struct TypeUnifyVisitor {
+  explicit TypeUnifyVisitor(TypeEnv& typeenv, TypevarReplaceVisitor& tvreplacer)
+      : typeenv(typeenv), tvreplacer(tvreplacer){};
+  TypeEnv& typeenv;
+  TypevarReplaceVisitor& tvreplacer;
+  types::Value operator()(const types::None& i, const types::None& i2){
+    return types::None();
+  }
+  types::Value operator()(const types::Void& i, const types::Void& i2){
+    return types::Void();
+  }
+  types::Value operator()(const types::Float& i, const types::Float& i2){
+    return types::Float();
+  }
+  types::Value operator()(const types::String& i, const types::String& i2){
+    return types::String();
+  }
+  types::Value operator()(const types::Ref& i, const types::Ref& i2) {
+    return types::Ref(std::visit(*this, i.val, i2.val));
+  }
+  types::Value operator()(const types::Pointer& i, const types::Pointer& i2) {
+    return types::Pointer(std::visit(*this, i.val, i2.val));
+  }
+  types::Value operator()(const types::Function& i, const types::Function& i2) {
+    std::vector<types::Value> newargs;
+    auto it2 = i2.arg_types.begin();
+    for (auto& a1 : i.arg_types) {
+      newargs.emplace_back(std::visit(*this, a1, *it2++));
+    }
+    return types::Function(std::visit(*this, i.ret_type, i2.ret_type),
+                           std::move(newargs));
+  }
+  types::Value operator()(const types::Closure& i, const types::Closure& i2) {
+    return types::Closure();  // no more useful
+  }
+  types::Value operator()(const types::Array& i, const types::Array& i2) {
+    return types::Array(std::visit(*this,i.elem_type, i2.elem_type), i.size);
+  }
+  types::Value operator()(const types::Struct& i, const types::Struct& i2) {
+    std::vector<types::Struct::Keytype> newarg;
+    auto it2 = i2.arg_types.begin();
+    for (auto& a1 : i.arg_types) {
+      types::Struct::Keytype nk = {a1.field,
+                                   std::visit(*this, a1.val, (*it2).val)};
+      newarg.emplace_back(std::move(nk));
+    }
+    return types::Struct(std::move(newarg));
+  }
+  types::Value operator()(const types::Tuple& i, const types::Tuple& i2) {
+    std::vector<types::Value> newarg;
+    auto it2 = i2.arg_types.begin();
+    for (auto& a1 : i.arg_types) {
+      newarg.emplace_back(std::visit(*this, a1, *it2));
+    }
+    return types::Tuple(std::move(newarg));
+  }
+  // llvm::Type* operator()(types::Time& i);
+  types::Value operator()(const types::Alias& i, const types::Alias& i2) {
+    return types::Alias(i.name, std::visit(*this, i.target, i2.target));
+  }
+
+  template <typename T>
+  types::Value operator()(const types::TypeVar& i, const T& i2) {
+    tvreplacer.tvmap.emplace(i.index,i2);
+    return i;
+  }
+  types::Value operator()(const types::TypeVar& i,const types::TypeVar& i2){
+    tvreplacer.tvmap.emplace(i.index,i2);
+    return i;
+  }
+  template <typename T>
+  types::Value operator()(const T& i, const types::TypeVar& i2) {
+    return (*this)(i2, i);
+  }
+  template <typename T1, typename T2>
+  types::Value operator()(const Rec_Wrap<T1>& i, const T2& i2){
+    return (*this)(i.t.back(),i2);
+  }
+  template <typename T1, typename T2>
+  types::Value operator()(const T1& i, const Rec_Wrap<T2>& i2){
+    return (*this)(i,i2.t.back());
+  }
+  template <typename T1, typename T2>
+  types::Value operator()(const Rec_Wrap<T1>& i, const Rec_Wrap<T2>& i2){
+    return (*this)(i.t.back(),i2.t.back());
+  }
+  template <typename T1, typename T2>
+  types::Value operator()(const T1& i, const T2& i2) {
+    throw std::runtime_error("type mismatch detected");
+    return types::None();
+  }
+};
+
 class TypeInferVisitor : public ASTVisitor {
   friend TypevarReplaceVisitor;
 
@@ -145,6 +239,7 @@ class TypeInferVisitor : public ASTVisitor {
   std::optional<types::Value> current_return_type;
   TypeEnv typeenv;
   TypevarReplaceVisitor tvreplacevisitor;
+  TypeUnifyVisitor unifyvisitor;
   // std::unordered_map<int, types::Value> typevar_to_actual_map;
   bool has_return;
 };

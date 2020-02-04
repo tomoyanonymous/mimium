@@ -92,8 +92,9 @@ void LLVMGenerator::createMiscDeclarations() {
 
   auto* getnowtype =  llvm::FunctionType::get(builder->getDoubleTy(), {}, false);
   auto gnr = module->getOrInsertFunction("mimium_getnow",getnowtype).getCallee();
-    setValuetoMap("mimium_getnow", gnr);
+  llvm::cast<llvm::Function>(gnr)->setLinkage(llvm::Function::ExternalLinkage);
 
+    setValuetoMap("mimium_getnow", gnr);
 
 }
 

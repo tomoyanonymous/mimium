@@ -102,8 +102,8 @@ struct FunInst : public MIRinstruction {
   bool hasself;
   bool isrecursive;
   explicit FunInst(const std::string& name, std::deque<std::string> newargs,
-                   types::Value type = types::Void(),
-                   bool isrecursive = false);
+                    bool isrecursive = false,types::Value type = types::Void()
+                  );
   std::string toString() override;
   bool isFunction() override { return true; }
 };
@@ -113,8 +113,8 @@ struct FcallInst : public MIRinstruction {
   std::optional<std::string> time;
   FCALLTYPE ftype;
   FcallInst(const std::string& lv, std::string fname, std::deque<std::string> args,
-            FCALLTYPE ftype = CLOSURE, types::Value type = types::Float(),
-            std::optional<std::string> time=std::nullopt)
+            FCALLTYPE ftype = CLOSURE, 
+            std::optional<std::string> time=std::nullopt,types::Value type = types::Float())
       : MIRinstruction(lv, type),
         fname(std::move(fname)),
         args(std::move(args)),

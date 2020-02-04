@@ -139,8 +139,8 @@ void KNormalizeVisitor::visit(LambdaAST& ast) {
     newargs.push_back(stackPopStr());
   }
   // typeinfer.tmpfname = name;
-  ast.accept(typeinfer);
-  FunInst newinst(name, std::move(newargs), type_stack.top(), ast.isrecursive);
+  // ast.accept(typeinfer);
+  FunInst newinst(name, std::move(newargs), ast.isrecursive);
   typeinfer.getEnv().emplace(name, type_stack.top());
 
   newinst.hasself = ast.hasself;
@@ -175,9 +175,10 @@ void KNormalizeVisitor::visit(LambdaAST& ast) {
 //   return res;
 // }
 void KNormalizeVisitor::visit(FcallAST& ast) {
+  auto newname = getVarName();
+
   ast.getFname()->accept(*this);
   auto resfname = stackPopStr();
-  auto newname = getVarName();
   auto args = ast.getArgs();
   std::deque<std::string> newarg;
   for (auto& arg : args->getElements()) {
@@ -185,8 +186,8 @@ void KNormalizeVisitor::visit(FcallAST& ast) {
     // arg->accept(typeinfer);
     newarg.push_back(stackPopStr());
   }
-  ast.accept(typeinfer);
-  auto lasttype = typeinfer.getLastType();
+  // ast.accept(typeinfer);
+  // auto lasttype = typeinfer.getLastType();
   std::optional<std::string> time = std::nullopt;
   if (ast.time != nullptr) {
     ast.time->accept(*this);
@@ -202,10 +203,17 @@ void KNormalizeVisitor::visit(FcallAST& ast) {
   // auto type = std::holds_alternative<types::Void>(lasttype) ? lasttype:
   // type_stack.top();
   Instructions newinst = FcallInst(newname, resfname, std::move(newarg), fnkind,
-                                   lasttype, std::move(time));
+                                   std::move(time));
 
   currentblock->addInst(newinst);
-  typeinfer.getEnv().emplace(newname, lasttype);
+  types::Value rettype = types::Void();
+  if(  typeinfer.getEnv().exist(resfname)){
+  auto ftype = typeinfer.getEnv().find(resfname);
+  if(rv::holds_alternative<types::Function>(ftype)){
+    rettype = rv::get<types::Function>(ftype).ret_type;
+  }
+  }
+  typeinfer.getEnv().emplace(newname, rettype);
 
   res_stack_str.push(newname);
 };
@@ -248,6 +256,7 @@ void KNormalizeVisitor::visit(IfAST& ast) {
         FcallInst(newname, "ifexpr", {condname, thenval, elseval}, EXTERNAL);
     currentblock->addInst(res);
     res_stack_str.push(newname);
+    typeinfer.getEnv().emplace(newname,types::Float());
   } else {
     IfInst newinst(newname, condname);
     Instructions res = newinst;
@@ -267,10 +276,10 @@ void KNormalizeVisitor::visit(IfAST& ast) {
 void KNormalizeVisitor::visit(ReturnAST& ast) {
   ast.getExpr()->accept(*this);
   auto newname = stackPopStr();
-  ast.accept(typeinfer);
-  auto type = typeinfer.getLastType();
-  typeinfer.getEnv().emplace(newname, type);
-  Instructions newinst = ReturnInst("ret", newname, type);
+  // ast.accept(typeinfer);
+  // auto type = typeinfer.getLastType();
+  // typeinfer.getEnv().emplace(newname, type);
+  Instructions newinst = ReturnInst("ret", newname);
   currentblock->addInst(newinst);
 }
 void KNormalizeVisitor::visit(ForAST& ast) {

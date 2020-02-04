@@ -284,7 +284,7 @@ void CodeGenVisitor::operator()(FcallInst& i) {
   if (i.time) {  // if arguments is timed value, call addTask
     createAddTaskFn(i, isclosure, isglobal);
   } else {
-    if (std::holds_alternative<types::Void>(i.type)) {
+    if (std::holds_alternative<types::Void>(G.typeenv.find(i.lv_name))) {
       G.builder->CreateCall(fun, args);
     } else {
       auto res = G.builder->CreateCall(fun, args, i.lv_name);
@@ -294,7 +294,9 @@ void CodeGenVisitor::operator()(FcallInst& i) {
 }
 llvm::Value* CodeGenVisitor::getDirFun(FcallInst& i) {
   auto fun = G.module->getFunction(i.fname);
+  if(i.fname!="mimium_getnow"){
   fun->setLinkage(llvm::GlobalValue::InternalLinkage);
+  }
   if (fun == nullptr) {
     throw std::logic_error("function could not be referenced");
   }
